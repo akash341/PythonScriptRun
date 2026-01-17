@@ -2,14 +2,14 @@ name: Website Monitor
 
 on:
   schedule:
-    - cron: '*/1 * * * *' # Runs every 30 minutes
-  workflow_dispatch:      # Allows you to run it manually for testing
+    - cron: '*/30 * * * *' # Every 30 minutes
+  workflow_dispatch:      # Manual trigger button
 
 jobs:
   check-website:
     runs-on: ubuntu-latest
     permissions:
-      contents: write     # Needed to save the state back to the repo
+      contents: write     # Needed to save last_article.txt
 
     steps:
       - name: Checkout repository
@@ -21,20 +21,19 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: pip install requests beautifulsoup4
 
-      - name: Run monitor script
+      - name: Run monitor
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
+          TARGET_URL: ${{ secrets.TARGET_URL }}
         run: python monitor.py
 
-      - name: Save state (Commit changes)
+      - name: Auto-commit State
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
           git add last_article.txt
-          git commit -m "Update state: last seen article" || echo "No changes to commit"
+          git commit -m "Update last seen article" || echo "No changes to commit"
           git push
