@@ -1,1 +1,40 @@
+name: Website Monitor
 
+on:
+  schedule:
+    - cron: '*/1 * * * *' # Runs every 30 minutes
+  workflow_dispatch:      # Allows you to run it manually for testing
+
+jobs:
+  check-website:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write     # Needed to save the state back to the repo
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run monitor script
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: python monitor.py
+
+      - name: Save state (Commit changes)
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add last_article.txt
+          git commit -m "Update state: last seen article" || echo "No changes to commit"
+          git push
