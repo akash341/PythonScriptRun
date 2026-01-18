@@ -36,8 +36,8 @@ def get_page_hash(url):
 def send_telegram_msg(message):
     """Sends notification to Telegram via Bot API."""
     # FIX: Added missing '/bot' in the URL string
-    url = f"https://api.telegram.org{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": message}
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "HTML"}
     try:
         r = requests.post(url, data=payload)
         r.raise_for_status()
