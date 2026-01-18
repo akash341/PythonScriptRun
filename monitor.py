@@ -46,7 +46,7 @@ def main():
         print(f"Found {len(new_links)} new updates!")
         for link in new_links:
             # Send to Telegram
-            url = f"https://api.telegram.org{TELEGRAM_TOKEN}/sendMessage"
+            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
             payload = {"chat_id": CHAT_ID, "text": f"<b>🚀 New Link Found!</b>\n\n{html.escape(link)}", "parse_mode": "HTML"}
             requests.post(url, data=payload)
         
