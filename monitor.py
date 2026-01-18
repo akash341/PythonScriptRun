@@ -65,8 +65,8 @@ def main():
         # --- OPTION 2: Use html.escape for the message ---
       #  safe_url = html.escape(URL_TO_MONITOR)
      #   message = f"<b>⚠️ Page Content Updated!</b>\n\nView changes here:\n{safe_url}"
+        send_telegram_msg(f"<b>⚠️ Page Content Updated!</b>\n\nView changes here:\n{URL_TO_MONITOR}")
         
-        send_telegram_msg(message)
         
         with open(LAST_STATE_FILE, "w") as f:
             f.write(current_hash)
