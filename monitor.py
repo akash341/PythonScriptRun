@@ -37,7 +37,7 @@ def send_telegram_msg(message):
     """Sends notification to Telegram via Bot API."""
     # FIX: Added missing '/bot' in the URL string
     url = f"https://api.telegram.org{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "HTML"}
+    payload = {"chat_id": CHAT_ID, "text": message}
     try:
         r = requests.post(url, data=payload)
         r.raise_for_status()
@@ -63,8 +63,8 @@ def main():
         print(f"Change detected on page!")
         
         # --- OPTION 2: Use html.escape for the message ---
-        safe_url = html.escape(URL_TO_MONITOR)
-        message = f"<b>⚠️ Page Content Updated!</b>\n\nView changes here:\n{safe_url}"
+      #  safe_url = html.escape(URL_TO_MONITOR)
+     #   message = f"<b>⚠️ Page Content Updated!</b>\n\nView changes here:\n{safe_url}"
         
         send_telegram_msg(message)
         
