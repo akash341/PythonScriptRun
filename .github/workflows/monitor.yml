@@ -2,18 +2,21 @@ name: Website Monitor
 
 on:
   schedule:
-    - cron: '*/30 * * * *' # Every 30 minutes
+    - cron: '*/30 * * * *' # Runs every 30 minutes
   workflow_dispatch:      # Manual trigger button
 
 jobs:
   check-website:
     runs-on: ubuntu-latest
     permissions:
-      contents: write     # Needed to save last_article.txt
+      contents: write     # Crucial for 2026: Allows pushing seen_links.txt back to repo
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # fetch-depth: 0 is recommended if you perform complex git operations
+          fetch-depth: 0 
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,6 +37,15 @@ jobs:
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
-          git add last_article.txt
-          git commit -m "Update last seen article" || echo "No changes to commit"
-          git push
+          
+          # Stage the specific history file
+          git add seen_links.txt
+          
+          # Only commit and push if the file actually changed
+          # This prevents "nothing to commit" errors from stopping the workflow
+          if git diff --staged --quiet; then
+            echo "No new links found; skipping commit."
+          else
+            git commit -m "Update seen links history [skip ci]"
+            git push
+          fi
