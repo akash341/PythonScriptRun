@@ -1,77 +1,77 @@
 import os
 import requests
-import hashlib
-import html  # Added for Option 2: Secure formatting
+import html
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 
-# --- CONFIGURATION FROM GITHUB SECRETS ---
+# --- CONFIGURATION ---
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
 URL_TO_MONITOR = os.environ.get("TARGET_URL")
-LAST_STATE_FILE = "last_hash.txt"
+SEEN_LINKS_FILE = "seen_links.txt"  # Stores all links we have already notified about
 
-def get_page_hash(url):
-    """Fetches the page and returns a SHA-256 hash of a specific section."""
+def get_all_links(url):
+    """Scrapes all links from the page and returns them as a set."""
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Cache-Control': 'no-cache'}
+        headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(url, headers=headers, timeout=15)
         response.raise_for_status()
         
         soup = BeautifulSoup(response.text, 'html.parser')
+        links = set()
         
-        # --- IMPROVED HASHING (Option B) ---
-        # Target a specific element (like 'body' or 'main') to avoid 
-        # false positives from invisible metadata in the <head>
-        target_element = soup.find('body') 
-        if target_element:
-            content = target_element.get_text() # Get only text to ignore attribute changes
-        else:
-            content = response.text
-
-        return hashlib.sha256(content.encode('utf-8')).hexdigest()
+        # Look for links specifically in the body or a known content div to avoid menu links
+        content_area = soup.find('body')
+        for a in content_area.find_all('a', href=True):
+            full_url = urljoin(url, a['href'])
+            # Basic filter: exclude common menu/social links if needed
+            if "facebook.com" not in full_url and "twitter.com" not in full_url:
+                links.add(full_url)
+        return links
     except Exception as e:
-        print(f"Error fetching page: {e}")
-        return None
+        print(f"Scraping Error: {e}")
+        return set()
 
 def send_telegram_msg(message):
-    """Sends notification to Telegram via Bot API."""
-    # FIX: Added missing '/bot' in the URL string
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "HTML"}
     try:
         r = requests.post(url, data=payload)
         r.raise_for_status()
     except Exception as e:
-        # Improved error reporting
         print(f"Telegram Error: {e}")
-        if 'r' in locals():
-            print(f"Response Body: {r.text}")
 
 def main():
     if not all([TELEGRAM_TOKEN, CHAT_ID, URL_TO_MONITOR]):
         print("Error: Missing required environment variables.")
         return
 
-    current_hash = get_page_hash(URL_TO_MONITOR)
+    # 1. Get current links from the page
+    current_links = get_all_links(URL_TO_MONITOR)
     
-    last_known_hash = ""
-    if os.path.exists(LAST_STATE_FILE):
-        with open(LAST_STATE_FILE, "r") as f:
-            last_known_hash = f.read().strip()
+    # 2. Load seen links from the file
+    seen_links = set()
+    if os.path.exists(SEEN_LINKS_FILE):
+        with open(SEEN_LINKS_FILE, "r") as f:
+            seen_links = set(line.strip() for line in f if line.strip())
 
-    if current_hash and current_hash != last_known_hash:
-        print(f"Change detected on page!")
+    # 3. Find truly NEW links (links in current set but NOT in seen set)
+    new_links = current_links - seen_links
+
+    if new_links:
+        print(f"Detected {len(new_links)} new updates!")
+        for link in new_links:
+            safe_link = html.escape(link)
+            send_telegram_msg(f"<b>🚀 New Update Found!</b>\n\n{safe_link}")
         
-        # --- OPTION 2: Use html.escape for the message ---
-      #  safe_url = html.escape(URL_TO_MONITOR)
-     #   message = f"<b>⚠️ Page Content Updated!</b>\n\nView changes here:\n{safe_url}"
-        send_telegram_msg(f"<b>⚠️ Page Content Updated!</b>\n\nView changes here:\n{URL_TO_MONITOR}")
-        
-        
-        with open(LAST_STATE_FILE, "w") as f:
-            f.write(current_hash)
+        # 4. Save updated list of seen links
+        # Using 'a' (append) or 'w' (overwrite) depends on preference. 
+        # Here we overwrite to keep only currently active links.
+        with open(SEEN_LINKS_FILE, "w") as f:
+            for link in current_links:
+                f.write(f"{link}\n")
     else:
-        print("No content changes detected.")
+        print("No new links detected.")
 
 if __name__ == "__main__":
     main()
